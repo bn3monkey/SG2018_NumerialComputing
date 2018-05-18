@@ -283,7 +283,6 @@ void thread_method_Euler(int thread_id)
 		/*********************** Fs 계산 ****************************/
 		Fs = getFs(i, pos_prev, SPRING_K, REST_LENGTH_HORIZ, REST_LENGTH_VERT, REST_LENGTH_DIAG, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 
-
 		/*********************** Fg 계산 ****************************/
 		Fg = PARTICLE_MASS * Gravity;
 
@@ -372,7 +371,7 @@ void thread_method_Cookbook(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[i] = pos_prev[i] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T + 0.5f * a * DELTA_T * DELTA_T;
 
 	}
 }
