@@ -261,6 +261,19 @@ void cloth_cal_cpu::method_Euler()
 		pos_next[forth] = pos_prev[forth];
 		pos_next[fifth] = pos_prev[fifth];
 
+		vel_next[first] = vel_prev[first];
+		vel_next[second] = vel_prev[second];
+		vel_next[third] = vel_prev[third];
+		vel_next[forth] = vel_prev[forth];
+		vel_next[fifth] = vel_prev[fifth];
+
+		force_next[first] = force_prev[first];
+		force_next[second] = force_prev[second];
+		force_next[third] = force_prev[third];
+		force_next[forth] = force_prev[forth];
+		force_next[fifth] = force_prev[fifth];
+
+
 		buf_flag = 1 - buf_flag;
 	}
 }
@@ -293,11 +306,11 @@ void thread_method_Euler(int thread_id)
 		force_next[i] = Fs + Fg + Fd;
 		
 		/*********************** 가속도 계산 ****************************/
-		a = force_prev[i] * PARTICLE_INV_MASS;
+		a = force_next[i] * PARTICLE_INV_MASS;
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_next[i] * DELTA_T;
 
 	}
 }
@@ -335,6 +348,19 @@ void cloth_cal_cpu::method_Cookbook()
 		pos_next[forth] = pos_prev[forth];
 		pos_next[fifth] = pos_prev[fifth];
 
+		vel_next[first] = vel_prev[first];
+		vel_next[second] = vel_prev[second];
+		vel_next[third] = vel_prev[third];
+		vel_next[forth] = vel_prev[forth];
+		vel_next[fifth] = vel_prev[fifth];
+
+		force_next[first] = force_prev[first];
+		force_next[second] = force_prev[second];
+		force_next[third] = force_prev[third];
+		force_next[forth] = force_prev[forth];
+		force_next[fifth] = force_prev[fifth];
+
+
 		buf_flag = 1 - buf_flag;
 	}
 
@@ -367,11 +393,12 @@ void thread_method_Cookbook(int thread_id)
 		force_next[i] = Fs + Fg + Fd;
 
 		/*********************** 가속도 계산 ****************************/
-		a = force_prev[i] * PARTICLE_INV_MASS;
+		a = force_next[i] * PARTICLE_INV_MASS;
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T + 0.5f * a * DELTA_T * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_next[i] * DELTA_T + 0.5f * a * DELTA_T * DELTA_T;
+
 
 	}
 }
@@ -409,6 +436,19 @@ void cloth_cal_cpu::method_SecondOrderRungeKutta()
 		pos_next[forth] = pos_prev[forth];
 		pos_next[fifth] = pos_prev[fifth];
 
+		vel_next[first] = vel_prev[first];
+		vel_next[second] = vel_prev[second];
+		vel_next[third] = vel_prev[third];
+		vel_next[forth] = vel_prev[forth];
+		vel_next[fifth] = vel_prev[fifth];
+		
+		force_next[first] = force_prev[first];
+		force_next[second] = force_prev[second];
+		force_next[third] = force_prev[third];
+		force_next[forth] = force_prev[forth];
+		force_next[fifth] = force_prev[fifth];
+
+
 		buf_flag = 1 - buf_flag;
 	}
 
@@ -440,14 +480,15 @@ void thread_method_SecondOrderRungeKutta(int thread_id)
 
 		/*********************** Fsum 계산 ****************************/
 		force_next[i] = Fs + Fg + Fd;
-
+		
 		/*********************** 가속도 계산 ****************************/
 		a = force_prev[i] * PARTICLE_INV_MASS;
 		nexta = force_next[i] * PARTICLE_INV_MASS;
+		//printf("(%d) %f %f\n", i, a, nexta);
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + 0.5f * (a + nexta) * DELTA_T;
-		pos_next[i] = pos_prev[i] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
+		pos_next[i] = pos_prev[i] + 0.5f * (vel_prev[i] + vel_next[i]) * DELTA_T;
 
 	}
 }
