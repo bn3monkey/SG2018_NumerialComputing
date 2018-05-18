@@ -162,7 +162,7 @@ void cloth_cal_cpu::initialize_buffer(GLfloat*& init_position, GLfloat*& init_ve
 		free_buffer();
 		exit(-1);
 	}
-	for (int i = 0; i < wrapped_buffer_size; i++)
+	for (int i = 0; i < buffer_size; i++)
 		vel_prev[i] = glm::vec4(0);
 	
 	force_prev = force_buf[0] = new glm::vec4[buffer_size];
