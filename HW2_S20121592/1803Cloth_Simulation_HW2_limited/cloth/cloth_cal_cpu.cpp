@@ -119,38 +119,20 @@ void cloth_cal_cpu::initialize_buffer(GLfloat*& init_position, GLfloat*& init_ve
 	// Initial positions of the particles
 	buf_flag = 0;
 	int buffer_size = NUM_PARTICLES_X * NUM_PARTICLES_Y;
-	int wrapped_buffer_size = (NUM_PARTICLES_X + 2) * (NUM_PARTICLES_Y + 2);
-	pos_prev = position_buf[0] = new glm::vec4[wrapped_buffer_size];
+	pos_prev = position_buf[0] = new glm::vec4[buffer_size];
 	if (pos_prev == NULL)
 	{
 		free_buffer();
 		exit(-1);
 	}
-	pos_next = position_buf[1] = new glm::vec4[wrapped_buffer_size];
+	pos_next = position_buf[1] = new glm::vec4[buffer_size];
 	if (pos_next == NULL)
 	{
 		free_buffer();
 		exit(-1);
 	}
 
-	pos_prev[0].w = 0;
-	pos_prev[NUM_PARTICLES_X+1].w = 0;
-	pos_prev[(NUM_PARTICLES_X+2)*(NUM_PARTICLES_Y + 1)].w = 0;
-	pos_prev[NUM_PARTICLES_X+1 + (NUM_PARTICLES_X + 2)*(NUM_PARTICLES_Y + 1)].w = 0;
-	
-	for (int x = 1; x < NUM_PARTICLES_X + 1; x++)
-	{
-		pos_prev[x] = glm::vec4(0);
-		pos_prev[x + (NUM_PARTICLES_X+2) * (NUM_PARTICLES_Y + 1)] = glm::vec4(0);
-	}
-	for (int y = 1; y < NUM_PARTICLES_Y + 1; y++)
-	{
-		pos_prev[0 + (NUM_PARTICLES_X) * y]= glm::vec4(0);
-		pos_prev[(NUM_PARTICLES_X+1) + (NUM_PARTICLES_X)* y] = glm::vec4(0);
-	}
-
-
-	vel_prev = velocity_buf[0] = new glm::vec4[buffer_size];
+		vel_prev = velocity_buf[0] = new glm::vec4[buffer_size];
 	if (vel_prev == NULL)
 	{
 		free_buffer();
@@ -189,6 +171,7 @@ void cloth_cal_cpu::initialize_buffer(GLfloat*& init_position, GLfloat*& init_ve
 	float dt = 1.0f / (NUM_PARTICLES_Y - 1);
 
 	glm::vec4 p(0.0f, 0.0f, 0.0f, 1.0f);
+	int idx;
 	for (int i = 0; i < NUM_PARTICLES_Y; i++) {
 		for (int j = 0; j < NUM_PARTICLES_X; j++) {
 			p.x = dx * j;
@@ -196,12 +179,13 @@ void cloth_cal_cpu::initialize_buffer(GLfloat*& init_position, GLfloat*& init_ve
 			p.z = 0.0f;
 			p = transf * p;
 
-			pos_prev[pos_reidx(j, i)] = p;
+			idx = pos_idx(j, i);
+			pos_prev[idx] = p;
 
-			init_position[pos_idx(j,i)] = p.x;
-			init_position[pos_idx(j, i)] = p.y;
-			init_position[pos_idx(j, i)] = p.z;
-			init_position[pos_idx(j, i)] = p.w;
+			init_position[idx] = p.x;
+			init_position[idx] = p.y;
+			init_position[idx] = p.z;
+			init_position[idx] = p.w;
 		}
 	}
 }
@@ -231,17 +215,14 @@ float* cloth_cal_cpu::run()
 		//case 3: method_FourthOrderRungeKutta(); break;
 	}
 
-	for (int y = 0; y<NUM_PARTICLES_Y; y++)
-		for(int x =0;x<NUM_PARTICLES_X;x++)
-		{
-			int arr_idx = pos_idx(x, y);
-			int buf_idx = pos_reidx(x, y);
-
-			host_position[4 * arr_idx] = pos_prev[buf_idx].x;
-			host_position[4 * arr_idx + 1] = pos_prev[buf_idx].y;
-			host_position[4 * arr_idx + 2] = pos_prev[buf_idx].z;
-			host_position[4 * arr_idx + 3] = pos_prev[buf_idx].w;
-		}
+	int buffer_size = NUM_PARTICLES_X * NUM_PARTICLES_Y;
+	for(int arr_idx = 0 ; arr_idx < buffer_size ; arr_idx++)
+	{
+		host_position[4 * arr_idx] = pos_prev[arr_idx].x;
+		host_position[4 * arr_idx + 1] = pos_prev[arr_idx].y;
+		host_position[4 * arr_idx + 2] = pos_prev[arr_idx].z;
+		host_position[4 * arr_idx + 3] = pos_prev[arr_idx].w;
+	}
 
 	return host_position;
 }
@@ -250,11 +231,11 @@ float* cloth_cal_cpu::run()
 void cloth_cal_cpu::method_Euler()
 {
 	//5개의 pin의 위치 index
-	int first = pos_reidx(0, NUM_PARTICLES_Y - 1);
-	int second = pos_reidx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
-	int third = pos_reidx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
+	int first = pos_idx(0, NUM_PARTICLES_Y - 1);
+	int second = pos_idx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
+	int third = pos_idx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
 	int forth = second + third - first;
-	int fifth = pos_reidx(NUM_PARTICLES_X -1, NUM_PARTICLES_Y - 1);
+	int fifth = pos_idx(NUM_PARTICLES_X -1, NUM_PARTICLES_Y - 1);
 
 	for (int iter = 0; iter < NUM_ITER; iter++)
 	{
@@ -292,8 +273,6 @@ void thread_method_Euler(int thread_id)
 	int start = thread_id * buffer_size;
 	int end = thread_id * buffer_size + buffer_size;
 
-	int pos_idx;
-
 	glm::fvec4 Fs;
 	glm::fvec4 Fg;
 	glm::fvec4 Fd;
@@ -301,8 +280,6 @@ void thread_method_Euler(int thread_id)
 	
 	for (int i = start; i < end; i++)
 	{
-		pos_idx = pos_direct(i, CENTER, NUM_PARTICLES_X);
-
 		/*********************** Fs 계산 ****************************/
 		Fs = getFs(i, pos_prev, SPRING_K, REST_LENGTH_HORIZ, REST_LENGTH_VERT, REST_LENGTH_DIAG, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 
@@ -321,7 +298,7 @@ void thread_method_Euler(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[pos_idx] = pos_prev[pos_idx] + vel_prev[i] * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T;
 
 	}
 }
@@ -329,11 +306,11 @@ void thread_method_Euler(int thread_id)
 void cloth_cal_cpu::method_Cookbook()
 {
 	//5개의 pin의 위치 index
-	int first = pos_reidx(0, NUM_PARTICLES_Y - 1);
-	int second = pos_reidx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
-	int third = pos_reidx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
+	int first = pos_idx(0, NUM_PARTICLES_Y - 1);
+	int second = pos_idx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
+	int third = pos_idx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
 	int forth = second + third - first;
-	int fifth = pos_reidx(NUM_PARTICLES_X - 1, NUM_PARTICLES_Y - 1);
+	int fifth = pos_idx(NUM_PARTICLES_X - 1, NUM_PARTICLES_Y - 1);
 
 	for (int iter = 0; iter < NUM_ITER; iter++)
 	{
@@ -372,20 +349,13 @@ void thread_method_Cookbook(int thread_id)
 	int start = thread_id * buffer_size;
 	int end = thread_id * buffer_size + buffer_size;
 
-	int pos_idx;
-
 	glm::fvec4 Fs;
 	glm::fvec4 Fg;
 	glm::fvec4 Fd;
 	glm::fvec4 a;
 
-	glm::fvec4 diff;
-	float distance;
-
 	for (int i = start; i < end; i++)
 	{
-		pos_idx = pos_direct(i, CENTER, NUM_PARTICLES_X);
-
 		/*********************** Fs 계산 ****************************/
 		Fs = getFs(i, pos_prev, SPRING_K, REST_LENGTH_HORIZ, REST_LENGTH_VERT, REST_LENGTH_DIAG, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 		/*********************** Fg 계산 ****************************/
@@ -402,7 +372,7 @@ void thread_method_Cookbook(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[pos_idx] = pos_prev[pos_idx] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
+		pos_next[i] = pos_prev[i] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
 
 	}
 }
@@ -410,11 +380,11 @@ void thread_method_Cookbook(int thread_id)
 void cloth_cal_cpu::method_SecondOrderRungeKutta()
 {
 	//5개의 pin의 위치 index
-	int first = pos_reidx(0, NUM_PARTICLES_Y - 1);
-	int second = pos_reidx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
-	int third = pos_reidx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
+	int first = pos_idx(0, NUM_PARTICLES_Y - 1);
+	int second = pos_idx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
+	int third = pos_idx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
 	int forth = second + third - first;
-	int fifth = pos_reidx(NUM_PARTICLES_X - 1, NUM_PARTICLES_Y - 1);
+	int fifth = pos_idx(NUM_PARTICLES_X - 1, NUM_PARTICLES_Y - 1);
 
 	for (int iter = 0; iter < NUM_ITER; iter++)
 	{
@@ -453,8 +423,6 @@ void thread_method_SecondOrderRungeKutta(int thread_id)
 	int start = thread_id * buffer_size;
 	int end = thread_id * buffer_size + buffer_size;
 
-	int pos_idx;
-
 	glm::fvec4 Fs;
 	glm::fvec4 Fg;
 	glm::fvec4 Fd;
@@ -463,8 +431,6 @@ void thread_method_SecondOrderRungeKutta(int thread_id)
 
 	for (int i = start; i < end; i++)
 	{
-		pos_idx = pos_direct(i, CENTER, NUM_PARTICLES_X);
-
 		/*********************** Fs 계산 ****************************/
 		Fs = getFs(i, pos_prev, SPRING_K, REST_LENGTH_HORIZ, REST_LENGTH_VERT, REST_LENGTH_DIAG, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 		/*********************** Fg 계산 ****************************/
@@ -482,7 +448,7 @@ void thread_method_SecondOrderRungeKutta(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + 0.5f * (a + nexta) * DELTA_T;
-		pos_next[pos_idx] = pos_prev[pos_idx] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
+		pos_next[i] = pos_prev[i] + (vel_prev[i] + 0.5f * a * DELTA_T) * DELTA_T;
 
 	}
 }

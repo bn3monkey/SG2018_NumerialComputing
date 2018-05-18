@@ -55,19 +55,14 @@ public:
 
 inline int pos_index(int x, int y, int NUM_PARTICLES_X)
 {
-	return x + (NUM_PARTICLES_X)* y;
+	return x + (NUM_PARTICLES_X* y);
 }
-inline int pos_reindex(int x, int y, int NUM_PARTICLES_X)
-{
-	return (x + 1) + (NUM_PARTICLES_X + 2) * (y + 1);
-}
-inline int pos_direct(int i, enum direct_part d, int NUM_PARTICLES_X)
+
+inline int pos_direct(int i, enum direct_part d, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
 {
 	int x, y;
 	y = i / NUM_PARTICLES_X;
 	x = i - y * NUM_PARTICLES_X;
-	x += 1;
-	y += 1;
 	
 	switch (d)
 	{
@@ -82,15 +77,15 @@ inline int pos_direct(int i, enum direct_part d, int NUM_PARTICLES_X)
 	case RIGHTDOWN: x += 1; y += 1; break;
 	}
 
-	return x + (NUM_PARTICLES_X + 2) * y;
+	if (x < 0 || x >= NUM_PARTICLES_X || y < 0 || y >= NUM_PARTICLES_Y)
+		return -1;
+	return pos_index(x, y, NUM_PARTICLES_X);
 }
 
 #define pos_idx(x,y) pos_index(x,y, NUM_PARTICLES_X)
-#define pos_reidx(x,y) pos_reindex(x, y, NUM_PARTICLES_X)
 
 inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LENGTH_HORIZ, float REST_LENGTH_VERT, float REST_LENGTH_DIAG, float NUM_PARTICLES_X, float NUM_PARTICLES_Y)
 {
-	int pos_idx;
 	int pos_preidx;
 
 	glm::vec4 diff;
@@ -99,15 +94,12 @@ inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LE
 	glm::vec4 Fs = glm::vec4(0);
 
 	/*********************** Fs 계산 ****************************/
-	pos_idx = pos_direct(i, CENTER, NUM_PARTICLES_X);
-
-	
-	pos_preidx = pos_direct(i, LEFT, NUM_PARTICLES_X);
-	if (pos_prev[pos_preidx].w != 0)
+	pos_preidx = pos_direct(i, LEFT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (pos_preidx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
@@ -116,104 +108,104 @@ inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LE
 		Fs += (SPRING_K * (distance - REST_LENGTH_HORIZ)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, DOWN, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, DOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, RIGHT, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, RIGHT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_HORIZ)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_HORIZ)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, UP, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, UP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
 	
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
 	}
 
 #ifdef EIGHTH_DIRECTION
-	pos_preidx = pos_direct(i, RIGHTDOWN, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, RIGHTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, LEFTDOWN, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, LEFTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, LEFTUP, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, LEFTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
 	}
 
-	pos_preidx = pos_direct(i, RIGHTUP, NUM_PARTICLES_X);
+	pos_preidx = pos_direct(i, RIGHTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	//Fs에 결과값을 더해준다.
-	if (pos_prev[pos_preidx].w != 0)
+	if (pos_preidx >= 0)
 	{
 		// diff = r 구하기
-		diff = pos_prev[pos_preidx] - pos_prev[pos_idx];
+		diff = pos_prev[pos_preidx] - pos_prev[i];
 		// distance = |r| 
 		distance = glm::length(glm::fvec3(diff));
 		// diff = r/|r|
 		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
 		// F = K *(|r| - R)*(r/|r|)
-		Fs += (pos_prev[pos_preidx].w * SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+		Fs +=( SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
 	}
 #endif
 	
