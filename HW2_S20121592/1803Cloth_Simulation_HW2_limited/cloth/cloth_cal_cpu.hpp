@@ -11,14 +11,14 @@
 
 enum direct_part
 {
-	CENTER,
-	LEFT,
-	RIGHT,
-	UP,
-	DOWN,
 	LEFTUP,
-	LEFTDOWN,
+	UP,
 	RIGHTUP,
+	LEFT,
+	CENTER,
+	RIGHT,
+	LEFTDOWN,
+	DOWN,
 	RIGHTDOWN,
 };
 
@@ -209,5 +209,134 @@ inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LE
 	}
 #endif
 	
+	return Fs;
+}
+
+#define new_pos(i) (pos_prev[i] + vel_prev[i] * DELTA_T)
+inline glm::vec4 get_nextFs(int i, glm::vec4* pos_prev, glm::vec4* vel_prev, float DELTA_T, float SPRING_K, float REST_LENGTH_HORIZ, float REST_LENGTH_VERT, float REST_LENGTH_DIAG, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
+{
+	int pos_preidx;
+
+	glm::vec4 diff;
+	float distance;
+
+	glm::vec4 Fs = glm::vec4(0);
+
+	/*********************** Fs 계산 ****************************/
+	pos_preidx = pos_direct(i, LEFT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (pos_preidx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_HORIZ)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, DOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, RIGHT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_HORIZ)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, UP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_VERT)) * diff;
+	}
+
+#ifdef EIGHTH_DIRECTION
+	pos_preidx = pos_direct(i, RIGHTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, LEFTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, LEFTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+	}
+
+	pos_preidx = pos_direct(i, RIGHTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	//Fs에 결과값을 더해준다.
+	if (pos_preidx >= 0)
+	{
+		// diff = r 구하기
+		diff = new_pos(pos_preidx) - new_pos(i);
+		// distance = |r| 
+		distance = glm::length(glm::fvec3(diff));
+		// diff = r/|r|
+		diff = glm::fvec4(glm::normalize(glm::fvec3(diff)), 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SPRING_K * (distance - REST_LENGTH_DIAG)) * diff;
+	}
+#endif
+
 	return Fs;
 }

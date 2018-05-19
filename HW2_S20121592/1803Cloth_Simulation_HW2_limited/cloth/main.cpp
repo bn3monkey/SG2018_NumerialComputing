@@ -44,9 +44,9 @@ typedef struct _OPENCL_C_PROG_SRC {
 
 #define OPENCL
 //#define CPU
-#define CPU_KERNEL_NUM 0
+#define CPU_KERNEL_NUM 3
 
-#define KERNEL_NUM2 true
+#define KERNEL_NUM3 true
 #if KERNEL_NUM1
 #define KERNEL_POS_NAME "cloth_position_global_euler"
 #elif KERNEL_NUM2
@@ -609,6 +609,7 @@ void display(void) {
         errcode_ret |= clSetKernelArg(kernel[0], 13, sizeof(float), &REST_LENGTH_DIAG);
         errcode_ret |= clSetKernelArg(kernel[0], 14, sizeof(float), &DELTA_T);
         errcode_ret |= clSetKernelArg(kernel[0], 15, sizeof(float), &DAMPING_CONST);
+
         CHECK_ERROR_CODE(errcode_ret);
         read_buf = 1 - read_buf;
 
