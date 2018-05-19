@@ -11,12 +11,8 @@ enum direct_part
 	RIGHTDOWN,
 };
 
-inline int direct(int i, enum direct_part d, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
+inline int direct(int x, int y, enum direct_part d, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
 {
-	int x, y;
-	y = i / NUM_PARTICLES_X;
-	x = i - y * NUM_PARTICLES_X;
-
 	switch (d)
 	{
 	case CENTER: break;
@@ -36,7 +32,7 @@ inline int direct(int i, enum direct_part d, int NUM_PARTICLES_X, int NUM_PARTIC
 		return y * NUM_PARTICLES_X + x;
 }
 
-inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLengthHoriz, float RestLengthVert, float RestLengthDiag, float NUM_PARTICLES_X, float NUM_PARTICLES_Y)
+inline float4 getFs(int x, int y, __global float4* pos_in, float SpringK, float RestLengthHoriz, float RestLengthVert, float RestLengthDiag, float NUM_PARTICLES_X, float NUM_PARTICLES_Y)
 {
 	int idx;
 	float4 diff;
@@ -44,7 +40,8 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 	//계산하기 전 Fs는 Clear
 	float4 Fs = (float4)(0);
 
-	idx = direct(i, LEFT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	int i = x + NUM_PARTICLES_X * y;
+	idx = direct(x, y, LEFT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -59,7 +56,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		// F = K *(|r| - R)*(r/|r|)
 		Fs += (SpringK * (distance - RestLengthHoriz)) * diff;
 	}
-	idx = direct(i, DOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, DOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -75,7 +72,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		Fs += (SpringK * (distance - RestLengthVert)) * diff;
 	}
 
-	idx = direct(i, RIGHT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, RIGHT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -88,7 +85,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		// F = K *(|r| - R)*(r/|r|)
 		Fs += (SpringK * (distance - RestLengthHoriz)) * diff;
 	}
-	idx = direct(i, UP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, UP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -102,7 +99,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		Fs += (SpringK * (distance - RestLengthVert)) * diff;
 	}
 
-	idx = direct(i, RIGHTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, RIGHTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -115,7 +112,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		// F = K *(|r| - R)*(r/|r|)
 		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
 	}
-	idx = direct(i, LEFTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, LEFTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -128,7 +125,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		// F = K *(|r| - R)*(r/|r|)
 		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
 	}
-	idx = direct(i, LEFTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, LEFTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -141,7 +138,7 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 		// F = K *(|r| - R)*(r/|r|)
 		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
 	}
-	idx = direct(i, RIGHTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = direct(x, y, RIGHTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
 	if (idx >= 0)
 	{
 		//Fs에 결과값을 더해준다.
@@ -158,8 +155,187 @@ inline float4 getFs(int i, __global float4* pos_in, float SpringK, float RestLen
 	return Fs;
 }
 
+__kernel
+void cloth_position_global_euler(
+    __global float4* pos_in, __global float4* pos_out,
+    __global float4* vel_in, __global float4* vel_out,
+	__global float4* force_in, __global float4* force_out,
+    __local float4* local_data,
+    float3 Gravity,
+    float ParticleMass,
+    float ParticleInvMass,
+    float SpringK,
+    float RestLengthHoriz,
+    float RestLengthVert,
+    float RestLengthDiag,
+    float DeltaT,
+    float DampingConst) {
 
-inline void move_global_to_local(__global float4* pos_in, __local float4* local_data)
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	int width = get_global_size(0);
+	int height = get_global_size(1);
+    int idx = x + width * y;
+	float4 Fs, Fg, Fd, a;
+
+	/*********************** Fs 계산 ****************************/
+	Fs = getFs(x, y, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+
+	/*********************** Fg 계산 ****************************/
+	Fg = ParticleMass * (float4)(Gravity, 0.0f);
+
+	/*********************** Fd 계산 ****************************/
+	Fd = -DampingConst * vel_in[idx];
+
+	/*********************** 다음 힘 계산 ****************************/
+	Fs = Fs + Fg + Fd;
+
+	/*********************** 가속도 계산 ****************************/
+	a = Fs * ParticleInvMass;
+
+	/*********************** First Order 계산 ****************************/
+	vel_out[idx] = vel_in[idx] + a * DeltaT;
+	pos_out[idx] = pos_in[idx] + vel_out[idx] * DeltaT;
+
+
+	if (y == height -1)
+	{
+		int span = (width >> 2);
+		int span2 = span + span;
+		int span3 = span + span2;
+		int span4 = width - 1;
+		
+		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
+		{
+			vel_out[idx] = vel_in[idx];
+			pos_out[idx] = pos_in[idx];
+		}
+	}
+
+}
+
+__kernel
+void cloth_position_global_cookbook(
+	__global float4* pos_in, __global float4* pos_out,
+	__global float4* vel_in, __global float4* vel_out,
+	__global float4* force_in, __global float4* force_out,
+	__local float4* local_data,
+	float3 Gravity,
+	float ParticleMass,
+	float ParticleInvMass,
+	float SpringK,
+	float RestLengthHoriz,
+	float RestLengthVert,
+	float RestLengthDiag,
+	float DeltaT,
+	float DampingConst) {
+
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	int width = get_global_size(0);
+	int height = get_global_size(1);
+	int idx = x + width * y;
+	float4 Fs, Fg, Fd, a;
+
+	/*********************** Fs 계산 ****************************/
+	Fs = getFs(x, y, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+
+	/*********************** Fg 계산 ****************************/
+	Fg = ParticleMass * (float4)(Gravity, 0.0f);
+
+	/*********************** Fd 계산 ****************************/
+	Fd = -DampingConst * vel_in[idx];
+
+	/*********************** 다음 힘 계산 ****************************/
+	Fs = Fs + Fg + Fd;
+
+	/*********************** 가속도 계산 ****************************/
+	a = Fs * ParticleInvMass;
+
+	/*********************** First Order 계산 ****************************/
+	vel_out[idx] = vel_in[idx] + a * DeltaT;
+	pos_out[idx] = pos_in[idx] + DeltaT * (vel_out[idx] + 0.5f * DeltaT * a);
+
+
+	if (y == height - 1)
+	{
+		int span = (width >> 2);
+		int span2 = span + span;
+		int span3 = span + span2;
+		int span4 = width - 1;
+
+		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
+		{
+			vel_out[idx] = vel_in[idx];
+			pos_out[idx] = pos_in[idx];
+		}
+	}
+
+}
+
+__kernel
+void cloth_position_global_modified(
+	__global float4* pos_in, __global float4* pos_out,
+	__global float4* vel_in, __global float4* vel_out,
+	__global float4* force_in, __global float4* force_out,
+	__local float4* local_data,
+	float3 Gravity,
+	float ParticleMass,
+	float ParticleInvMass,
+	float SpringK,
+	float RestLengthHoriz,
+	float RestLengthVert,
+	float RestLengthDiag,
+	float DeltaT,
+	float DampingConst) {
+
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	int width = get_global_size(0);
+	int height = get_global_size(1);
+	int idx = x + width * y;
+	float4 Fs, Fg, Fd, a, preva;
+
+	/*********************** Fs 계산 ****************************/
+	Fs = getFs(x, y, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+
+	/*********************** Fg 계산 ****************************/
+	Fg = ParticleMass * (float4)(Gravity, 0.0f);
+
+	/*********************** Fd 계산 ****************************/
+	Fd = -DampingConst * vel_in[idx];
+
+	/*********************** 다음 힘 계산 ****************************/
+	Fs = Fs + Fg + Fd;
+	force_out[idx] = Fs;
+	/*********************** 가속도 계산 ****************************/
+	a = Fs * ParticleInvMass;
+	preva = force_in[idx] * ParticleInvMass;
+
+	/*********************** First Order 계산 ****************************/
+	vel_out[idx] = vel_in[idx] + 0.5f * (a + preva )* DeltaT;
+	pos_out[idx] = pos_in[idx] + 0.5f * (vel_in[idx] + vel_out[idx]) * DeltaT;
+
+
+	if (y == height - 1)
+	{
+		int span = (width >> 2);
+		int span2 = span + span;
+		int span3 = span + span2;
+		int span4 = width - 1;
+
+		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
+		{
+			vel_out[idx] = vel_in[idx];
+			pos_out[idx] = pos_in[idx];
+			force_out[idx] = force_in[idx];
+		}
+	}
+
+}
+
+
+inline void move_global_to_local(int idx, __global float4* pos_in, __local float4* local_data)
 {
 	// Copy into local memory
 	uint local_width = get_local_size(0) + 2;
@@ -273,184 +449,154 @@ inline void move_global_to_local(__global float4* pos_in, __local float4* local_
 	barrier(CLK_LOCAL_MEM_FENCE);
 }
 
-__kernel
-void cloth_position_global_euler(
-    __global float4* pos_in, __global float4* pos_out,
-    __global float4* vel_in, __global float4* vel_out,
-	__global float4* force_in, __global float4* force_out,
-    __local float4* local_data,
-    float3 Gravity,
-    float ParticleMass,
-    float ParticleInvMass,
-    float SpringK,
-    float RestLengthHoriz,
-    float RestLengthVert,
-    float RestLengthDiag,
-    float DeltaT,
-    float DampingConst) {
+inline int local_direct(int x, int y, enum direct_part d, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
+{
 
-	int x = get_global_id(0);
-	int y = get_global_id(1);
-	int width = get_global_size(0);
-	int height = get_global_size(1);
-    int idx = x + width * y;
-	float4 Fs, Fg, Fd, a;
+	int local_x = get_local_id(0) + 1;
+	int local_y = get_local_id(1) + 1;
 
-	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
-
-	/*********************** Fg 계산 ****************************/
-	Fg = ParticleMass * (float4)(Gravity, 0.0f);
-
-	/*********************** Fd 계산 ****************************/
-	Fd = -DampingConst * vel_in[idx];
-
-	/*********************** 다음 힘 계산 ****************************/
-	Fs = Fs + Fg + Fd;
-
-	/*********************** 가속도 계산 ****************************/
-	a = Fs * ParticleInvMass;
-
-	/*********************** First Order 계산 ****************************/
-	vel_out[idx] = vel_in[idx] + a * DeltaT;
-	pos_out[idx] = pos_in[idx] + vel_out[idx] * DeltaT;
-
-
-	if (y == height -1)
+	switch (d)
 	{
-		int span = (width >> 2);
-		int span2 = span + span;
-		int span3 = span + span2;
-		int span4 = width - 1;
-		
-		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
-		{
-			vel_out[idx] = vel_in[idx];
-			pos_out[idx] = pos_in[idx];
-		}
+	case CENTER: break;
+	case LEFT: x -= 1; local_x -= 1; break;
+	case RIGHT: x += 1; local_x += 1; break;
+	case UP: y -= 1; local_y -= 1; break;
+	case DOWN: y += 1; local_y += 1; break;
+	case LEFTUP: x -= 1; y -= 1; local_x -= 1; local_y -= 1; break;
+	case LEFTDOWN:x -= 1; y += 1; local_x -= 1; local_y += 1; break;
+	case RIGHTUP: x += 1; y -= 1; local_x += 1; local_y -= 1; break;
+	case RIGHTDOWN: x += 1; y += 1; local_x += 1; local_y += 1; break;
 	}
 
+	if (x < 0 || x >= NUM_PARTICLES_X || y < 0 || y >= NUM_PARTICLES_Y)
+		return -1;
+	
+	return local_y * (get_local_size(0) + 2) + local_x;
 }
 
-__kernel
-void cloth_position_global_cookbook(
-	__global float4* pos_in, __global float4* pos_out,
-	__global float4* vel_in, __global float4* vel_out,
-	__global float4* force_in, __global float4* force_out,
-	__local float4* local_data,
-	float3 Gravity,
-	float ParticleMass,
-	float ParticleInvMass,
-	float SpringK,
-	float RestLengthHoriz,
-	float RestLengthVert,
-	float RestLengthDiag,
-	float DeltaT,
-	float DampingConst) {
+inline float4 getlocalFs(int x, int y, __local float4* pos_in, float SpringK, float RestLengthHoriz, float RestLengthVert, float RestLengthDiag, float NUM_PARTICLES_X, float NUM_PARTICLES_Y)
+{
+	int idx;
+	float4 diff;
+	float distance;
+	//계산하기 전 Fs는 Clear
+	float4 Fs = (float4)(0);
 
-	int x = get_global_id(0);
-	int y = get_global_id(1);
-	int width = get_global_size(0);
-	int height = get_global_size(1);
-	int idx = x + width * y;
-	float4 Fs, Fg, Fd, a;
-
-	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
-
-	/*********************** Fg 계산 ****************************/
-	Fg = ParticleMass * (float4)(Gravity, 0.0f);
-
-	/*********************** Fd 계산 ****************************/
-	Fd = -DampingConst * vel_in[idx];
-
-	/*********************** 다음 힘 계산 ****************************/
-	Fs = Fs + Fg + Fd;
-
-	/*********************** 가속도 계산 ****************************/
-	a = Fs * ParticleInvMass;
-
-	/*********************** First Order 계산 ****************************/
-	vel_out[idx] = vel_in[idx] + a * DeltaT;
-	pos_out[idx] = pos_in[idx] + DeltaT * (vel_out[idx] + 0.5f * DeltaT * a);
-
-
-	if (y == height - 1)
+	int i = local_direct(x, y, CENTER, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	idx = local_direct(x, y, LEFT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
 	{
-		int span = (width >> 2);
-		int span2 = span + span;
-		int span3 = span + span2;
-		int span4 = width - 1;
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
 
-		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
-		{
-			vel_out[idx] = vel_in[idx];
-			pos_out[idx] = pos_in[idx];
-		}
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthHoriz)) * diff;
+	}
+	idx = local_direct(x, y, DOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthVert)) * diff;
 	}
 
-}
-
-__kernel
-void cloth_position_global_modified(
-	__global float4* pos_in, __global float4* pos_out,
-	__global float4* vel_in, __global float4* vel_out,
-	__global float4* force_in, __global float4* force_out,
-	__local float4* local_data,
-	float3 Gravity,
-	float ParticleMass,
-	float ParticleInvMass,
-	float SpringK,
-	float RestLengthHoriz,
-	float RestLengthVert,
-	float RestLengthDiag,
-	float DeltaT,
-	float DampingConst) {
-
-	int x = get_global_id(0);
-	int y = get_global_id(1);
-	int width = get_global_size(0);
-	int height = get_global_size(1);
-	int idx = x + width * y;
-	float4 Fs, Fg, Fd, a, preva;
-
-	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
-
-	/*********************** Fg 계산 ****************************/
-	Fg = ParticleMass * (float4)(Gravity, 0.0f);
-
-	/*********************** Fd 계산 ****************************/
-	Fd = -DampingConst * vel_in[idx];
-
-	/*********************** 다음 힘 계산 ****************************/
-	force_out[idx] = Fs + Fg + Fd;
-
-	/*********************** 가속도 계산 ****************************/
-	a = force_out[idx] * ParticleInvMass;
-	preva = force_in[idx] * ParticleInvMass;
-
-	/*********************** First Order 계산 ****************************/
-	vel_out[idx] = vel_in[idx] + 0.5f * (a + preva )* DeltaT;
-	pos_out[idx] = pos_in[idx] + 0.5f * (vel_in[idx] + vel_out[idx]) * DeltaT;
-
-
-	if (y == height - 1)
+	idx = local_direct(x, y, RIGHT, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
 	{
-		int span = (width >> 2);
-		int span2 = span + span;
-		int span3 = span + span2;
-		int span4 = width - 1;
-
-		if (x == 0 || x == span || x == span2 || x == span3 || x == span4)
-		{
-			vel_out[idx] = vel_in[idx];
-			pos_out[idx] = pos_in[idx];
-			force_out[idx] = force_in[idx];
-		}
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthHoriz)) * diff;
+	}
+	idx = local_direct(x, y, UP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기s
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthVert)) * diff;
 	}
 
+	idx = local_direct(x, y, RIGHTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
+	}
+	idx = local_direct(x, y, LEFTDOWN, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
+	}
+	idx = local_direct(x, y, LEFTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
+	}
+	idx = local_direct(x, y, RIGHTUP, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+	if (idx >= 0)
+	{
+		//Fs에 결과값을 더해준다.
+		// diff = r 구하기
+		diff = pos_in[idx] - pos_in[i];
+		// distance = |r| 
+		distance = fast_length(diff.xyz);
+		// diff = r/|r|
+		diff = (float4)(diff.xyz / distance, 0.0f);
+		// F = K *(|r| - R)*(r/|r|)
+		Fs += (SpringK * (distance - RestLengthDiag)) * diff;
+	}
+
+	return Fs;
 }
+
 
 __kernel
 void cloth_position_local_euler(
@@ -475,8 +621,10 @@ void cloth_position_local_euler(
 	int idx = x + width * y;
 	float4 Fs, Fg, Fd, a;
 
+	move_global_to_local(idx, pos_in, local_data);
+
 	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+	Fs = getlocalFs(x, y, local_data, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
 
 	/*********************** Fg 계산 ****************************/
 	Fg = ParticleMass * (float4)(Gravity, 0.0f);
@@ -534,8 +682,10 @@ void cloth_position_local_cookbook(
 	int idx = x + width * y;
 	float4 Fs, Fg, Fd, a;
 
+	move_global_to_local(idx, pos_in, local_data);
+
 	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+	Fs = getlocalFs(x, y, local_data, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
 
 	/*********************** Fg 계산 ****************************/
 	Fg = ParticleMass * (float4)(Gravity, 0.0f);
@@ -593,8 +743,10 @@ void cloth_position_local_modified(
 	int idx = x + width * y;
 	float4 Fs, Fg, Fd, a, preva;
 
+	move_global_to_local(idx, pos_in, local_data);
+
 	/*********************** Fs 계산 ****************************/
-	Fs = getFs(idx, pos_in, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
+	Fs = getlocalFs(x, y, local_data, SpringK, RestLengthHoriz, RestLengthVert, RestLengthDiag, width, height);
 
 	/*********************** Fg 계산 ****************************/
 	Fg = ParticleMass * (float4)(Gravity, 0.0f);
@@ -603,10 +755,11 @@ void cloth_position_local_modified(
 	Fd = -DampingConst * vel_in[idx];
 
 	/*********************** 다음 힘 계산 ****************************/
-	force_out[idx] = Fs + Fg + Fd;
+	Fs = Fs + Fg + Fd;
+	force_out[idx] = Fs;
 
 	/*********************** 가속도 계산 ****************************/
-	a = force_out[idx] * ParticleInvMass;
+	a = Fs * ParticleInvMass;
 	preva = force_in[idx] * ParticleInvMass;
 
 	/*********************** First Order 계산 ****************************/
@@ -625,7 +778,6 @@ void cloth_position_local_modified(
 		{
 			vel_out[idx] = vel_in[idx];
 			pos_out[idx] = pos_in[idx];
-			force_out[idx] = force_in[idx];
 		}
 	}
 
