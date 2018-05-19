@@ -29,7 +29,7 @@ class cloth_cal_cpu
 	void method_Euler();
 	void method_Cookbook();
 	void method_SecondOrderRungeKutta();
-	//void method_FourthOrderRungeKutta();
+	void method_FourthOrderRungeKutta();
 
 	
 	
@@ -84,7 +84,7 @@ inline int pos_direct(int i, enum direct_part d, int NUM_PARTICLES_X, int NUM_PA
 
 #define pos_idx(x,y) pos_index(x,y, NUM_PARTICLES_X)
 
-inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LENGTH_HORIZ, float REST_LENGTH_VERT, float REST_LENGTH_DIAG, float NUM_PARTICLES_X, float NUM_PARTICLES_Y)
+inline glm::vec4 getFs(int i, glm::vec4* pos_prev, float SPRING_K, float REST_LENGTH_HORIZ, float REST_LENGTH_VERT, float REST_LENGTH_DIAG, int NUM_PARTICLES_X, int NUM_PARTICLES_Y)
 {
 	int pos_preidx;
 

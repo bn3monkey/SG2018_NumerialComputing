@@ -565,7 +565,7 @@ void print_devices(cl_platform_id *platforms, int i) {
     errcode_ret = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, n_devices, devices, NULL);
     CHECK_ERROR_CODE(errcode_ret);
     
-    for (int j = 0; j < n_devices; j++) {
+    for (unsigned int j = 0; j < n_devices; j++) {
         fprintf(stdout, "----- [Begin of Device %d(%d) of Platform %d] ----------------------------------------------------------------------\n\n",
                 j, n_devices, i);
         print_device(devices, j);
@@ -589,7 +589,7 @@ void show_OpenCL_platform(void) {
     CHECK_ERROR_CODE(errcode_ret);
     
     fprintf(stdout, "\n");
-    for (int i = 0; i < n_platforms; i++) {
+    for (unsigned int i = 0; i < n_platforms; i++) {
         fprintf(stdout, "===== [Begin of Platform %d(%d)] ========================================================================================\n\n",
                 i, n_platforms);
         print_platform(platforms, i);

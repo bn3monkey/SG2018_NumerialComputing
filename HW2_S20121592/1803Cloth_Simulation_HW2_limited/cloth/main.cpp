@@ -44,8 +44,9 @@ typedef struct _OPENCL_C_PROG_SRC {
 
 #define OPENCL
 //#define CPU
+#define CPU_KERNEL_NUM 0
 
-#define KERNEL_NUM3 true
+#define KERNEL_NUM2 true
 #if KERNEL_NUM1
 #define KERNEL_POS_NAME "cloth_position_global_euler"
 #elif KERNEL_NUM2
@@ -485,7 +486,7 @@ bool InitializeOpenCL() {
     REST_LENGTH_DIAG = sqrtf(REST_LENGTH_HORIZ*REST_LENGTH_HORIZ + REST_LENGTH_VERT * REST_LENGTH_VERT);
 
 #ifdef CPU
-	cpu_program = new cloth_cal_cpu(0, 4, NUM_ITER, DELTA_T, NUM_PARTICLES_X, NUM_PARTICLES_Y, CLOTH_SIZE_X, CLOTH_SIZE_Y, PARTICLE_MASS, PARTICLE_INV_MASS, SPRING_K, DAMPING_CONST, GRAVITY);
+	cpu_program = new cloth_cal_cpu(CPU_KERNEL_NUM, 4, NUM_ITER, DELTA_T, NUM_PARTICLES_X, NUM_PARTICLES_Y, CLOTH_SIZE_X, CLOTH_SIZE_Y, PARTICLE_MASS, PARTICLE_INV_MASS, SPRING_K, DAMPING_CONST, GRAVITY);
 #endif
 	return true;
 

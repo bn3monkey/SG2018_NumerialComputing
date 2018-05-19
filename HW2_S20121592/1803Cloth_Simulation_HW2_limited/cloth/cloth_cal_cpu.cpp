@@ -1,6 +1,6 @@
 #include "cloth_cal_cpu.hpp"
 #include<cstring>
-
+#include "rkf45.h"
 
 static int NUM_PARTICLES_X;
 static int NUM_PARTICLES_Y;
@@ -490,5 +490,96 @@ void thread_method_SecondOrderRungeKutta(int thread_id)
 		vel_next[i] = vel_prev[i] + 0.5f * (a + nexta) * DELTA_T;
 		pos_next[i] = pos_prev[i] + 0.5f * (vel_prev[i] + vel_next[i]) * DELTA_T;
 
+	}
+}
+
+void cloth_cal_cpu::method_FourthOrderRungeKutta()
+{
+	//5개의 pin의 위치 index
+	int first = pos_idx(0, NUM_PARTICLES_Y - 1);
+	int second = pos_idx(NUM_PARTICLES_X >> 2, NUM_PARTICLES_Y - 1);
+	int third = pos_idx(NUM_PARTICLES_X >> 1, NUM_PARTICLES_Y - 1);
+	int forth = second + third - first;
+	int fifth = pos_idx(NUM_PARTICLES_X - 1, NUM_PARTICLES_Y - 1);
+
+	for (int iter = 0; iter < NUM_ITER; iter++)
+	{
+		pos_prev = position_buf[buf_flag];
+		pos_next = position_buf[1 - buf_flag];
+
+		vel_prev = velocity_buf[buf_flag];
+		vel_next = velocity_buf[1 - buf_flag];
+
+		force_prev = force_buf[buf_flag];
+		force_next = force_buf[1 - buf_flag];
+
+		for (int i = 0; i < thread_num; i++)
+			method_thread[i] = new std::thread(thread_method_FourthOrderRungeKutta, i);
+
+		for (int i = 0; i < thread_num; i++)
+			method_thread[i]->join();
+
+		//pin으로 고정한 것은 지속적으로 롤백.
+		pos_next[first] = pos_prev[first];
+		pos_next[second] = pos_prev[second];
+		pos_next[third] = pos_prev[third];
+		pos_next[forth] = pos_prev[forth];
+		pos_next[fifth] = pos_prev[fifth];
+
+		vel_next[first] = vel_prev[first];
+		vel_next[second] = vel_prev[second];
+		vel_next[third] = vel_prev[third];
+		vel_next[forth] = vel_prev[forth];
+		vel_next[fifth] = vel_prev[fifth];
+
+		force_next[first] = force_prev[first];
+		force_next[second] = force_prev[second];
+		force_next[third] = force_prev[third];
+		force_next[forth] = force_prev[forth];
+		force_next[fifth] = force_prev[fifth];
+
+
+		buf_flag = 1 - buf_flag;
+	}
+
+}
+
+void thread_method_FourthOrderRungeKutta(int thread_id)
+{
+	int buffer_totalsize = NUM_PARTICLES_X * NUM_PARTICLES_Y;
+	int buffer_size = buffer_totalsize / thread_num;
+	int start = thread_id * buffer_size;
+	int end = thread_id * buffer_size + buffer_size;
+
+	glm::fvec4 Fs;
+	glm::fvec4 Fg;
+	glm::fvec4 Fd;
+	glm::fvec4 nexta;
+	glm::fvec4 a;
+
+	for (int i = start; i < end; i++)
+	{
+		/*********************** Fs 계산 ****************************/
+		Fs = getFs(i, pos_prev, SPRING_K, REST_LENGTH_HORIZ, REST_LENGTH_VERT, REST_LENGTH_DIAG, NUM_PARTICLES_X, NUM_PARTICLES_Y);
+		/*********************** Fg 계산 ****************************/
+		Fg = PARTICLE_MASS * Gravity;
+
+		/*********************** Fd 계산 ****************************/
+		Fd = -DAMPING_CONST * vel_prev[i];
+
+		/*********************** Fsum 계산 ****************************/
+		force_next[i] = Fs + Fg + Fd;
+
+		/*********************** 가속도 계산 ****************************/
+		a = force_prev[i] * PARTICLE_INV_MASS;
+		nexta = force_next[i] * PARTICLE_INV_MASS;
+		//printf("(%d) %f %f\n", i, a, nexta);
+
+		/*********************** First Order 계산 ****************************/
+		
+		//velocity에 대한 미분방정식
+
+
+		//position에 대한 미분방정식
 	}
 }
