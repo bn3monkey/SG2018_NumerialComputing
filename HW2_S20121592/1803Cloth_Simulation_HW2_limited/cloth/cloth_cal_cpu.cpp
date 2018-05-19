@@ -212,7 +212,7 @@ float* cloth_cal_cpu::run()
 		case 0: method_Euler(); break;
 		case 1: method_Cookbook(); break;
 		case 2: method_SecondOrderRungeKutta(); break;
-		//case 3: method_FourthOrderRungeKutta(); break;
+		case 3: method_FourthOrderRungeKutta(); break;
 	}
 
 	int buffer_size = NUM_PARTICLES_X * NUM_PARTICLES_Y;
@@ -501,11 +501,13 @@ void cloth_cal_cpu::method_FourthOrderRungeKutta()
 		force_prev = force_buf[buf_flag];
 		force_next = force_buf[1 - buf_flag];
 
-		for (int i = 0; i < thread_num; i++)
-			method_thread[i] = new std::thread(thread_method_FourthOrderRungeKutta, i);
+		for(int i=0;i<thread_num;i++)
+			thread_method_FourthOrderRungeKutta(i);
+		//for (int i = 0; i < thread_num; i++)
+		//	method_thread[i] = new std::thread(thread_method_FourthOrderRungeKutta, i);
 
-		for (int i = 0; i < thread_num; i++)
-			method_thread[i]->join();
+		//for (int i = 0; i < thread_num; i++)
+		//	method_thread[i]->join();
 
 		//pin으로 고정한 것은 지속적으로 롤백.
 		pos_next[first] = pos_prev[first];
@@ -531,6 +533,27 @@ void cloth_cal_cpu::method_FourthOrderRungeKutta()
 	}
 
 }
+
+#define NEQN 4
+double work[4 + 6 * NEQN];
+int iwork[5];
+double arr_acc[4];
+void vel_ode(double* t, double* v, double* vp)
+{
+	vp[0] = arr_acc[0];
+	vp[1] = arr_acc[1];
+	vp[2] = arr_acc[2];
+	vp[3] = arr_acc[3];
+}
+double arr_vel[4];
+void pos_ode(double* t, double* p, double* pp)
+{
+	pp[0] = arr_vel[0];
+	pp[1] = arr_vel[1];
+	pp[2] = arr_vel[2];
+	pp[3] = arr_vel[3];
+}
+double arr_pos[4];
 
 void thread_method_FourthOrderRungeKutta(int thread_id)
 {
@@ -560,14 +583,45 @@ void thread_method_FourthOrderRungeKutta(int thread_id)
 
 		/*********************** 가속도 계산 ****************************/
 		a = force_prev[i] * PARTICLE_INV_MASS;
-		nexta = force_next[i] * PARTICLE_INV_MASS;
-		//printf("(%d) %f %f\n", i, a, nexta);
 
 		/*********************** First Order 계산 ****************************/
 		
-		//velocity에 대한 미분방정식
+		int neqn = NEQN;
+		double tinit = 0;
+		double t = DELTA_T;
+		int iflag = 1;
+		double err = 0.00001;
 
+		arr_acc[0] = a.x;
+		arr_acc[1] = a.y;
+		arr_acc[2] = a.z;
+		arr_acc[3] = 1.0;
+
+		//velocity에 대한 미분방정식
+		arr_vel[0] = vel_prev[i].x;
+		arr_vel[1] = vel_prev[i].y;
+		arr_vel[2] = vel_prev[i].z;
+		arr_vel[3] = 1.0f;
+		rkf45_(vel_ode, &neqn, arr_vel, &tinit, &t, &err, &err, &iflag, work, iwork);
+		vel_next[i].x = arr_vel[0];
+		vel_next[i].y = arr_vel[1];
+		vel_next[i].z = arr_vel[2];
+		vel_next[i].w = 1.0f;
+
+		tinit = 0;
+		t = DELTA_T;
+		err = 0.00001;
+		iflag = 1;
 
 		//position에 대한 미분방정식
+		arr_pos[0] = pos_prev[i].x;
+		arr_pos[1] = pos_prev[i].y;
+		arr_pos[2] = pos_prev[i].z;
+		arr_pos[3] = 1.0f;
+		rkf45_(pos_ode, &neqn, arr_pos, &tinit, &t, &err, &err, &iflag, work, iwork);
+		pos_next[i].x = arr_pos[0];
+		pos_next[i].y = arr_pos[1];
+		pos_next[i].z = arr_pos[2];
+		pos_next[i].w = 1.0f;
 	}
 }

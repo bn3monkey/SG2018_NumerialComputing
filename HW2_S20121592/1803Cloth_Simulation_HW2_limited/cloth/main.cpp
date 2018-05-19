@@ -42,8 +42,8 @@ typedef struct _OPENCL_C_PROG_SRC {
 #define OPENCL_C_PROG_POS_FILE_NAME "programs/cloth_position.cl"
 #define OPENCL_C_PROG_NOR_FILE_NAME "programs/cloth_normal.cl"
 
-#define OPENCL
-//#define CPU
+//#define OPENCL
+#define CPU
 #define CPU_KERNEL_NUM 3
 
 #define KERNEL_NUM3 true
