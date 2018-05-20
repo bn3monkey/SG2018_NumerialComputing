@@ -44,7 +44,7 @@ typedef struct _OPENCL_C_PROG_SRC {
 
 
 #define CPU
-#define CPU_KERNEL_NUM 1
+#define CPU_KERNEL_NUM 3
 #if CPU_KERNEL_NUM == 0
 #define CPU_POS_NAME "cpu_first_order"
 #elif CPU_KERNEL_NUM == 1
@@ -681,21 +681,21 @@ void display(void) {
 #ifdef OPENCL
     fprintf(stdout, "     * Time by CL kernel = %.3fms\n", compute_time);
 	whole_compute_time += compute_time;
+	fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
 	if (whole_compute_time > 10000)
 		fprintf(stdout, "Over 10 second\n");
 	else
 	{
-		fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
 		fprintf(result_fp, "%.3f\n", compute_time);
 	}
 #else //CPU
 	fprintf(stdout, "     * Time by CPU = %.3fms\n", compute_time);
 	whole_compute_time += compute_time;
+	fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
 	if (whole_compute_time > 10000)
 		fprintf(stdout, "Over 10 second\n");
 	else
 	{
-		fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
 		fprintf(result_fp, "%.3f\n", compute_time);
 	}
 #endif

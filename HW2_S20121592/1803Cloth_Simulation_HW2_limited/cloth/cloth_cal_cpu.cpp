@@ -589,7 +589,7 @@ void thread_method_FourthOrderRungeKutta(int thread_id)
 		int neqn = NEQN;
 		double tinit = 0;
 		double t = DELTA_T;
-		int iflag = 1;
+		int iflag = -1;
 		double err = 0.00001;
 
 		arr_acc[0] = a.x;
@@ -611,7 +611,7 @@ void thread_method_FourthOrderRungeKutta(int thread_id)
 		tinit = 0;
 		t = DELTA_T;
 		err = 0.00001;
-		iflag = 1;
+		iflag = -1;
 
 		//position에 대한 미분방정식
 		arr_pos[0] = pos_prev[i].x;
