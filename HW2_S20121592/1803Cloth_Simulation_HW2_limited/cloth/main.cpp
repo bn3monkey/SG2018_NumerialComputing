@@ -42,11 +42,20 @@ typedef struct _OPENCL_C_PROG_SRC {
 #define OPENCL_C_PROG_POS_FILE_NAME "programs/cloth_position.cl"
 #define OPENCL_C_PROG_NOR_FILE_NAME "programs/cloth_normal.cl"
 
-//#define OPENCL
-#define CPU
-#define CPU_KERNEL_NUM 3
+#define OPENCL
+//#define CPU
+#define CPU_KERNEL_NUM 0
+#if CPU_KERNEL_NUM == 0
+#define CPU_POS_NAME "cpu_first_order"
+#elif CPU_KERNEL_NUM == 1
+#define CPU_POS_NAME "cpu_cookbook"
+#elif CPU_KERNEL_NUM == 2
+#define CPU_POS_NAME "cpu_second_order"
+#else
+#define CPU_POS_NAME "cpu_fortran"
+#endif
 
-#define KERNEL_NUM3 true
+#define KERNEL_NUM1 true
 #if KERNEL_NUM1
 #define KERNEL_POS_NAME "cloth_position_global_euler"
 #elif KERNEL_NUM2
@@ -170,8 +179,8 @@ GLuint texture_names[N_TEXTURES_USED];
 // For cloth simulation
 #define PRIM_RESTART 0xffffff
 
-const int WORKGROUP_SIZE_X = 16;
-const int WORKGROUP_SIZE_Y = 8;
+int WORKGROUP_SIZE_X = 16;
+int WORKGROUP_SIZE_Y = 8;
 
 const int NUM_PARTICLES_X = 64;
 const int NUM_PARTICLES_Y = 64;
@@ -195,7 +204,8 @@ const float DAMPING_CONST = 0.01f;
 int NUM_ITER = 500;
 float DELTA_T = (1.0f/ NUM_ITER)*(1.0f / 60.0f); // Draw cloth every once per 1/60 sec.
 
-
+FILE* result_fp;
+float whole_compute_time;
 /******************************************************************************************************/
 
 char* strnstr(const char *s, const char *find, size_t slen) {
@@ -488,6 +498,23 @@ bool InitializeOpenCL() {
 #ifdef CPU
 	cpu_program = new cloth_cal_cpu(CPU_KERNEL_NUM, 4, NUM_ITER, DELTA_T, NUM_PARTICLES_X, NUM_PARTICLES_Y, CLOTH_SIZE_X, CLOTH_SIZE_Y, PARTICLE_MASS, PARTICLE_INV_MASS, SPRING_K, DAMPING_CONST, GRAVITY);
 #endif
+
+	char file_name[80];
+#ifdef OPENCL
+	sprintf(file_name, "[GPU]%s_iter(%d)_WG(%d,%d).txt", KERNEL_POS_NAME, NUM_ITER, WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y);
+#else
+	sprintf(file_name, "[CPU]_%s_iter(%d).txt", CPU_POS_NAME, NUM_ITER);
+#endif
+
+	result_fp = fopen(file_name, "w");
+	if (result_fp == NULL)
+	{
+		fprintf(stderr, "Cannot Open File : %s\n", file_name);
+		return false;
+	}
+	fprintf(stdout, "Now Open File : %s\n\n", file_name);
+	whole_compute_time = 0;
+
 	return true;
 
 }
@@ -513,6 +540,7 @@ void FinalizeOpenCL(void) {
 #ifdef CPU
 	delete cpu_program;
 #endif
+	fclose(result_fp);
 }
 
 /******************************************************************************************************/
@@ -650,9 +678,25 @@ void display(void) {
     CHECK_ERROR_CODE(errcode_ret);
 
 #ifdef OPENCL
-    fprintf(stdout, "     * Time by CL kernel = %.3fms\n\n", compute_time);
+    fprintf(stdout, "     * Time by CL kernel = %.3fms\n", compute_time);
+	whole_compute_time += compute_time;
+	if (whole_compute_time > 10000)
+		fprintf(stdout, "Over 10 second\n");
+	else
+	{
+		fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
+		fprintf(result_fp, "%.3f\n", compute_time);
+	}
 #else //CPU
-	fprintf(stdout, "     * Time by CPU = %.3fms\n\n", compute_time);
+	fprintf(stdout, "     * Time by CPU = %.3fms\n", compute_time);
+	whole_compute_time += compute_time;
+	if (whole_compute_time > 10000)
+		fprintf(stdout, "Over 10 second\n");
+	else
+	{
+		fprintf(stdout, "     * Whole Compute Time = %.3fms\n\n", whole_compute_time);
+		fprintf(result_fp, "%.3f\n", compute_time);
+	}
 #endif
 
 
@@ -945,11 +989,21 @@ void InitializeRenderer(void) {
 /******************************************************************************************************/
 
 int main(int argc, char* argv[]) {
-
+	int temp;
 	printf("\n^^^ Input the number of subintervals that subdivide the 1/60-second interval: ");
 	scanf("%d", &NUM_ITER);
 	DELTA_T = (1.0f / NUM_ITER)*(1.0f / 60.0f);
 	printf("^^^ NUN_ITER = %d, DELTA_T = %e \n\n", NUM_ITER, DELTA_T);
+
+	printf("\n^^^ Input two integer of Work group size(width, height)\nif you input 0, then work group size will be default!: ");
+	scanf("%d", &temp);
+	if (temp != 0)
+	{
+		WORKGROUP_SIZE_X = temp;
+		scanf("%d", &WORKGROUP_SIZE_Y);
+	}
+
+	printf("^^^ WORKGROUP_SIZE_X = %d, WORKGROUP_SIZE_Y = %d \n\n", WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y);
 	Sleep(3000);
 
     if (!InitializeOpenGL(argc, argv)) {
