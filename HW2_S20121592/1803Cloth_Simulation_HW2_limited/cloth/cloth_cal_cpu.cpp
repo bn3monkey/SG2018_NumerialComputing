@@ -303,7 +303,7 @@ void thread_method_Euler(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[i] = pos_prev[i] + vel_next[i] * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T;
 
 	}
 }
@@ -383,7 +383,7 @@ void thread_method_Cookbook(int thread_id)
 
 		/*********************** First Order 계산 ****************************/
 		vel_next[i] = vel_prev[i] + a * DELTA_T;
-		pos_next[i] = pos_prev[i] + vel_next[i] * DELTA_T + 0.5f * a * DELTA_T * DELTA_T;
+		pos_next[i] = pos_prev[i] + vel_prev[i] * DELTA_T + 0.5f * a * DELTA_T * DELTA_T;
 
 
 	}
