@@ -42,9 +42,9 @@ typedef struct _OPENCL_C_PROG_SRC {
 #define OPENCL_C_PROG_POS_FILE_NAME "programs/cloth_position.cl"
 #define OPENCL_C_PROG_NOR_FILE_NAME "programs/cloth_normal.cl"
 
-#define OPENCL
-//#define CPU
-#define CPU_KERNEL_NUM 0
+
+#define CPU
+#define CPU_KERNEL_NUM 1
 #if CPU_KERNEL_NUM == 0
 #define CPU_POS_NAME "cpu_first_order"
 #elif CPU_KERNEL_NUM == 1
@@ -55,18 +55,19 @@ typedef struct _OPENCL_C_PROG_SRC {
 #define CPU_POS_NAME "cpu_fortran"
 #endif
 
-#define KERNEL_NUM1 true
-#if KERNEL_NUM1
+//#define OPENCL
+#define KERNEL_NUM 0
+#if KERNEL_NUM == 0
 #define KERNEL_POS_NAME "cloth_position_global_euler"
-#elif KERNEL_NUM2
+#elif KERNEL_NUM == 1
 #define KERNEL_POS_NAME "cloth_position_global_cookbook"
-#elif KERNEL_NUM3
+#elif KERNEL_NUM == 2
 #define KERNEL_POS_NAME "cloth_position_global_modified"
-#elif KERNEL_NUM4
+#elif KERNEL_NUM == 3
 #define KERNEL_POS_NAME "cloth_position_local_euler"
-#elif KERNEL_NUM5
+#elif KERNEL_NUM == 4
 #define KERNEL_POS_NAME "cloth_position_local_cookbook"
-#elif KERNEL_NUM6
+#elif KERNEL_NUM == 5
 #define KERNEL_POS_NAME "cloth_position_local_modified"
 #endif
 
